@@ -5,13 +5,4 @@
 <web-app>
   <display-name>Archetype Created Web Application</display-name>
 
-  <servlet>
-    <servlet-name>WebSocketServlet</servlet-name>
-    <servlet-class>com.phantom.module.websocket.servlet.SocketServer</servlet-class>
-  </servlet>
-  
-  <servlet-mapping>
-    <servlet-name>WebSocketServlet</servlet-name>
-    <url-pattern>/websocket</url-pattern>
-  </servlet-mapping>
 </web-app>

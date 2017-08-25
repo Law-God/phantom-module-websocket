@@ -1,132 +1,73 @@
+<%@ page contentType="text/html; charset=utf-8" language="java" %>
+<%
+    String sessionId =  request.getSession().getId();
+    request.setAttribute("sessionId",sessionId);
+%>
 <!DOCTYPE html>
     <head>
         <meta charset="utf-8"/>
         <title>websocket测试</title>
     </head>
     <body>
-        <h2>Hello World!</h2>
-        <script>
-            var WS = new WebSocket("ws://localhost:8080/websocket");
+    Welcome<br/>
+    <input id="text" type="text" /><button onclick="send()">Send</button>
+    <button onclick="closeWebSocket()">Close</button>
+    <div id="message">
+    </div>
+    </body>
 
-            WS.onopen = function(){
-                console.log("open");
-                WS.send("hello");
-            }
+<script type="text/JavaScript">
+    var websocket = null;
 
-            WS.onmessage = function(evt){
-                console.log(evt.data);
-            }
+    //判断当前浏览器是否支持WebSocket
+    if('WebSocket' in window){
+        websocket = new WebSocket("ws://192.25.102.187:8080//phantom/websocket");
+    }
+    else{
+        alert('Not support websocket');
+    }
 
-            WS.onclose = function(evt){
-                console.log("close");
-            }
+    //连接发生错误的回调方法
+    websocket.onerror = function(){
+        setMessageInnerHTML("error");
+    };
 
-            WS.onerror = function(evt){
-                console.log("error");
-            }
-        </script>
+    //连接成功建立的回调方法
+    websocket.onopen = function(event){
+        setMessageInnerHTML("open");
+    };
+
+    //接收到消息的回调方法
+    websocket.onmessage = function(){
+        setMessageInnerHTML(event.data);
+    };
+
+    //连接关闭的回调方法
+    websocket.onclose = function(){
+        setMessageInnerHTML("close");
+        websocket = new WebSocket("ws://192.25.102.187:8080//phantom/websocket");
+    };
+
+    //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+    window.onbeforeunload = function(){
+        websocket.close();
+    };
+
+    //将消息显示在网页上
+    function setMessageInnerHTML(innerHTML){
+        document.getElementById('message').innerHTML += innerHTML + '<br/>';
+    }
+
+    //关闭连接
+    function closeWebSocket(){
+        websocket.close();
+    }
+
+    //发送消息
+    function send(){
+        var message = document.getElementById('text').value;
+        websocket.send(message);
+    }
+</script>
     </body>
 </html>
-
-
-<%--
-<!DOCTYPE HTML>
-<html>
-<head>
-    <meta charset="utf-8">
-    <script type="text/javascript" src="js/jquery.js"></script>
-    <script type="text/javascript" src="js/socket.js"></script>
-    <title>无标题文档</title>
-</head>
-<script language="javascript">
-
-</script>
-<body>
-<table>
-    <tr>
-        <td>Message</td>
-        <td><input type="text" id="message"></td>
-    </tr>
-    <tr>
-        <td>Name</td>
-        <td><input type="text" id="othername"></td>
-    </tr>
-    <tr>
-        <td><input id="sendbutton" type="button" value="send" onClick="click"  disabled="true">
-            </input></td>
-    </tr>
-</table>
-<script>
-    var username = window.prompt("输入你的名字:");
-
-    document.write("Welcome<p id=\"username\">"+username+"</p>");
-
-    if (!window.WebSocket && window.MozWebSocket)
-        window.WebSocket=window.MozWebSocket;
-    if (!window.WebSocket)
-        alert("No Support ");
-    var ws;
-
-    $(document).ready(function(){
-
-        $("#sendbutton").attr("disabled", false);
-        $("#sendbutton").click(sendMessage);
-
-        startWebSocket();
-    })
-
-    function sendMessage()
-    {
-        var othername=$("#othername").val();
-        var msg="MSG\t"+username+"_"+othername+"_"+$("#message").val();
-        send(msg);
-    }
-    function send(data)
-    {
-        console.log("Send:"+data);
-        ws.send(data);
-    }
-    function startWebSocket()
-    {
-        ws = new WebSocket("ws://localhost:8080/websocket");
-        ws.onopen = function(){
-            console.log("success open");
-            $("#sendbutton").attr("disabled", false);
-        };
-        ws.onmessage = function(event)
-        {
-            console.log("RECEIVE:"+event.data);
-            handleData(event.data);
-        };
-        ws.onclose = function(event) {
-            console.log("Client notified socket has closed",event);
-        };
-
-    }
-
-    function handleData(data)
-    {
-        var vals=data.split("\t");
-        var msgType=vals[0];
-        switch(msgType)
-        {
-            case "NAME":
-                var msg=vals[1];
-                var mes="NAME"+"\t"+msg+"_"+ username;
-                send(mes);
-                break;
-            case "MSG":
-                var val2s=vals[1].split("_");
-                var from=val2s[0];
-                var message=val2s[2];
-                alert(from+":"+message);
-                break;
-            default:
-                break;
-
-        }
-    }
-
-</script>
-</body>
-</html>--%>
