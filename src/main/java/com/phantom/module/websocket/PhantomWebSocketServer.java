@@ -1,14 +1,14 @@
 package com.phantom.module.websocket;
 
-import com.phantom.util.string.StringUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.util.StringUtils;
-
 import javax.servlet.http.HttpSession;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
-import java.nio.ByteBuffer;
+import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,6 +30,12 @@ public class PhantomWebSocketServer {
 	 * 客户连接Sesson
 	 */
 	private Session session;
+
+	/**
+	 * 心跳包
+	 */
+	private Heart heart = new Heart();
+
 	/**
 	 * <font color="#808080"><i>线程安全Set，用来存放每个客户端对应的MyWebSocket对象</i></font>
 	 */
@@ -52,6 +58,7 @@ public class PhantomWebSocketServer {
 		this.httpSessionId = httpSession.getId();
 		webSocketSet.add(this);
 		System.out.println(session.getId());
+		heart.start();
 	}
 
 	/**
@@ -63,7 +70,17 @@ public class PhantomWebSocketServer {
 	@OnMessage
 	public void onMessage(String msg, Session session){
 		log.debug("phantom websocket onMessage...");
-		sendMessage(msg);
+		log.debug(session.isOpen());
+		if(session.isOpen()){
+			heart.reset();
+			if("心跳包".equals(msg)){
+				sendMessage("心跳包");
+			}else{
+				sendMessage(msg);
+			}
+		}else{
+			webSocketSet.remove(this);
+		}
 	}
 
 	/**
@@ -72,7 +89,13 @@ public class PhantomWebSocketServer {
 	@OnClose
 	public void onClose(){
 		log.debug("phantom websocket onClose...");
-		webSocketSet.remove(this);
+		try {
+			webSocketSet.remove(this);
+			session.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 	/**
@@ -84,6 +107,12 @@ public class PhantomWebSocketServer {
 	@OnError
 	public void onError(Session session, Throwable e){
 		log.debug("phantom websocket onError...");
+		try {
+			webSocketSet.remove(this);
+			session.close();
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
 		e.printStackTrace();
 	}
 
@@ -103,9 +132,45 @@ public class PhantomWebSocketServer {
 	public void sendMessage(String msg){
 		if(StringUtils.isEmpty(msg)) return;
 		for(PhantomWebSocketServer phantomWebSocketServer : webSocketSet){
-			//phantomWebSocketServer.getSession().getAsyncRemote().sendText(msg);
 			phantomWebSocketServer.getSession().getAsyncRemote().sendText(msg);
 		}
+	}
+
+	/**
+	 * 心跳包检测
+	 */
+	class Heart{
+		//心跳时间10秒
+		private long heartTime = 10000;
+		//心跳检测次数
+		private int heartCheckCount = 5;
+
+		Timer timer = new Timer();
+
+		public void start(){
+			timer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					System.out.println("心跳剩余检测次数："+heartCheckCount+"");
+					if(heartCheckCount-- > 0){
+						sendMessage(session,"心跳包");
+					}else{
+						stop();
+						onClose();
+					}
+				}
+			},heartTime,heartTime);
+		}
+
+		public void stop(){
+			timer.cancel();
+		}
+
+		public void reset(){
+			this.heartCheckCount = 5;
+		}
+
+
 	}
 
 	public Session getSession() {
